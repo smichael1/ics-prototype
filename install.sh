@@ -20,7 +20,9 @@ for i in bin lib ; do
     done
 done
 
-# XXX FIXME: Get the real alarms.conf file from somewhere
-cp vslice/src/test/resources/test-alarms.conf $dir/conf/alarms.conf
+
+cp scripts/* $dir/bin
+chmod +x $dir/bin/*
+chmod -x $dir/bin/*.log
 
 rm -f $dir/bin/*.log.* $dir/bin/*.bat

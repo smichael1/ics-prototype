@@ -6,8 +6,8 @@ import Settings._
 
 val csw = (project in file("."))
   .settings(defaultSettings: _*)
-  .settings(name := "CSW Vertical Slice Example")
-  .aggregate(vslice, vsliceJava )
+  .settings(name := "Single Axis")
+  .aggregate(singleaxis )
 
 def compile(deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")
 
@@ -18,20 +18,10 @@ def runtime(deps: ModuleID*): Seq[ModuleID] = deps map (_ % "runtime")
 def container(deps: ModuleID*): Seq[ModuleID] = deps map (_ % "container")
 
 // EndToEnd Example project
-lazy val vslice = project
+lazy val singleaxis = project
   .enablePlugins(JavaAppPackaging)
-  .settings(packageSettings("VerticalSlice", "Vertical Slice Example", "More complicated example showing CSW features"): _*)
+  .settings(packageSettings("SingleAxis", "Single Axis Example", "More complicated example showing CSW features"): _*)
   .settings(libraryDependencies ++=
     compile(pkg, cs, ccs, ts, events, alarms, containerCmd, seqSupport, log) ++
       test(scalaTest, akkaTestKit)
   )
-
-// EndToEnd Example project Java version
-lazy val vsliceJava = project
-  .enablePlugins(JavaAppPackaging)
-  .settings(packageSettings("VerticalSliceJava", "Vertical Slice Java Example", "More complicated example showing CSW Java features"): _*)
-  .settings(libraryDependencies ++=
-    compile(javacsw, seqSupport, log) ++
-      test(akkaTestKit, junitInterface, scalaJava8Compat)
-  )
-
