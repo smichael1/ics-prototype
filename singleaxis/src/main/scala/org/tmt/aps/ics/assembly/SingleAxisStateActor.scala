@@ -29,6 +29,7 @@ class SingleAxisStateActor(publisher: ActorRef) extends Actor with ActorLogging 
       if (ts != currentState) {
         context.system.eventStream.publish(ts)
         context.become(stateReceive(ts))
+        publisher ! ts // publish the assembly state change to the world
         sender() ! StateWasSet(true)
       } else {
         sender() ! StateWasSet(false)
