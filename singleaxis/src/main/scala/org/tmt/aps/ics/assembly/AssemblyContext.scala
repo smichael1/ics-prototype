@@ -38,9 +38,11 @@ object AssemblyContext {
    * @param minEncoderLimit minimum
    */
   case class SingleAxisControlConfig(
-    positionScale: Double,
-    stageZero:     Double, minStageEncoder: Int,
-    minEncoderLimit: Int, maxEncoderLimit: Int
+    positionScale:   Double,
+    stageZero:       Double,
+    minStageEncoder: Int,
+    minEncoderLimit: Int,
+    maxEncoderLimit: Int
   )
 
   object SingleAxisControlConfig {
@@ -58,7 +60,7 @@ object AssemblyContext {
   }
 
   /**
-   * Configuration class
+   * Configuration class - NOT USED IN POC
    *
    * @param defaultInitialElevation a default initial eleveation (possibly remove once workign)
    * @param focusErrorGain          gain value for focus error
