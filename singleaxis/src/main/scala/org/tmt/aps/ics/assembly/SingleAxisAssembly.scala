@@ -237,10 +237,9 @@ class SingleAxisAssembly(val info: AssemblyInfo, supervisor: ActorRef) extends A
    */
   private def validateSequenceConfigArg(sca: SetupConfigArg): ValidationList = {
     // Are all of the configs really for us and correctly formatted, etc?
-    /*
-    ConfigValidation.validateSingleAxisSetupConfigArg(sca)
-     */
-    List[Validation]() // sm - I put this in so it would compile
+
+    ConfigValidator.validateSingleAxisSetupConfigArg(sca)
+
   }
 
   // Gets the assembly configurations from the config service, or a resource file, if not found and
@@ -263,7 +262,7 @@ class SingleAxisAssembly(val info: AssemblyInfo, supervisor: ActorRef) extends A
 object SingleAxisAssembly {
 
   // Get the single axis assembly config file from the config service, or use the given resource file if that doesn't work
-  val singleAxisConfigFile = new File("ics/singleAxisAssembly.conf")
+  val singleAxisConfigFile = new File("poc/singleAxis")
   val resource = new File("singleAxisAssembly.conf")
 
   def props(assemblyInfo: AssemblyInfo, supervisor: ActorRef) = Props(classOf[SingleAxisAssembly], assemblyInfo, supervisor)

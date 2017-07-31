@@ -42,7 +42,9 @@ object AssemblyContext {
     stageZero:       Double,
     minStageEncoder: Int,
     minEncoderLimit: Int,
-    maxEncoderLimit: Int
+    maxEncoderLimit: Int,
+    minPosition:     Double,
+    maxPosition:     Double
   )
 
   object SingleAxisControlConfig {
@@ -55,7 +57,9 @@ object AssemblyContext {
       val minStageEncoder = config.getInt(s"$prefix.control-config.minStageEncoder")
       val minEncoderLimit = config.getInt(s"$prefix.control-config.minEncoderLimit")
       val maxEncoderLimit = config.getInt(s"$prefix.control-config.maxEncoderLimit")
-      SingleAxisControlConfig(positionScale, stageZero, minStageEncoder, minEncoderLimit, maxEncoderLimit)
+      val minPosition = config.getDouble(s"$prefix.control-config.minPosition")
+      val maxPosition = config.getDouble(s"$prefix.control-config.maxPosition")
+      SingleAxisControlConfig(positionScale, stageZero, minStageEncoder, minEncoderLimit, maxEncoderLimit, minPosition, maxPosition)
     }
   }
 
@@ -75,7 +79,9 @@ object AssemblyContext {
       // Main prefix for keys used below
       val prefix = "org.tmt.aps.ics.singleAxis.assembly"
 
-      val defaultInitialElevation = config.getDouble(s"$prefix.calculation-config.defaultInitialElevation")
+      //val defaultInitialElevation = config.getDouble(s"$prefix.calculation-config.defaultInitialElevation")
+
+      val defaultInitialElevation = 1.0
 
       SingleAxisCalculationConfig(defaultInitialElevation)
     }

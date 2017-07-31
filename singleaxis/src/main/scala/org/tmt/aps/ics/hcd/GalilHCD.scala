@@ -208,7 +208,7 @@ object GalilHCD {
   def props(hcdInfo: HcdInfo, supervisor: ActorRef) = Props(classOf[GalilHCD], hcdInfo, supervisor)
 
   // Get the galil config file from the config service, or use the given resource file if that doesn't work
-  val galilConfigFile = new File("ics/galilHCD.conf")
+  val galilConfigFile = new File("poc/galilHCD")
   val resource = new File("galilHCD.conf")
 
   // HCD Info

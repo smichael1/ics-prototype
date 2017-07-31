@@ -2,6 +2,7 @@ package org.tmt.aps.ics.assembly
 
 import csw.services.ccs.Validation._
 import csw.util.config.Configurations.{SetupConfig, SetupConfigArg}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Try
 
@@ -10,7 +11,7 @@ import scala.util.Try
 /**
  * TMT Source Code: 4/17/17.
  */
-object ConfigValidator {
+object ConfigValidator extends LazyLogging {
 
   /**
    * Looks for any SetupConfigs in a SetupConfigArg that fail validation and returns as a list of only Invalid
@@ -20,7 +21,7 @@ object ConfigValidator {
    */
   def invalidsInSingleAxisSetupConfigArg(sca: SetupConfigArg)(implicit ac: AssemblyContext): List[Invalid] =
     // Returns a list of all failed validations in config arg
-    validateTromboneSetupConfigArg(sca).collect { case a: Invalid => a }
+    validateSingleAxisSetupConfigArg(sca).collect { case a: Invalid => a }
 
   /**
    * Runs Trombone-specific validation on a single SetupConfig.
@@ -36,8 +37,8 @@ object ConfigValidator {
     }
   }
 
-  // Validates a SetupConfigArg for Trombone Assembly
-  def validateTromboneSetupConfigArg(sca: SetupConfigArg)(implicit ac: AssemblyContext): ValidationList =
+  // Validates a SetupConfigArg for SingleAxis Assembly
+  def validateSingleAxisSetupConfigArg(sca: SetupConfigArg)(implicit ac: AssemblyContext): ValidationList =
     sca.configs.map(config => validateOneSetupConfig(config)).toList
 
   /**
@@ -87,35 +88,35 @@ object ConfigValidator {
    */
   def positionValidation(sc: SetupConfig)(implicit ac: AssemblyContext): Validation = {
 
-    Valid
+    // The spec says parameter is not required, but doesn't explain so requiring parameter
+    // Check for correct key and type -- only checks that essential key is present, not strict
 
-    /*
-    if (sc.configKey != ac.compHelper.positionCK) {
-      Invalid(WrongConfigKeyIssue("The SetupConfig is not a position configuration."))
-   
+    val helper = ac.compHelper;
+
+    if (!sc.exists(ac.compHelper.stimulusPupilXKey)) {
+      Invalid(MissingKeyIssue(s"The position SetupConfig must have a DoubleItem named: ${ac.compHelper.stimulusPupilXKey}"))
+    } else if (Try(sc(ac.compHelper.stimulusPupilXKey)).isFailure) {
+      Invalid(WrongItemTypeIssue(s"The position SetupConfig must have a DoubleItem named: ${ac.compHelper.stimulusPupilXKey}"))
+    } else if (sc(ac.compHelper.stimulusPupilXKey).units != ac.compHelper.stimulusPupilXUnits) {
+      Invalid(WrongUnitsIssue(s"The position SetupConfig parameter: ${ac.compHelper.stimulusPupilXKey} must have units of: ${ac.compHelper.stimulusPupilXUnits}"))
     } else {
-      // The spec says parameter is not required, but doesn't explain so requiring parameter
-      // Check for correct key and type -- only checks that essential key is present, not strict
-      
-      if (!sc.exists(ac.naRangeDistanceKey)) {
-        Invalid(MissingKeyIssue(s"The position SetupConfig must have a DoubleItem named: ${ac.naRangeDistanceKey}"))
-      } else if (Try(sc(ac.naRangeDistanceKey)).isFailure) {
-        Invalid(WrongItemTypeIssue(s"The position SetupConfig must have a DoubleItem named: ${ac.naRangeDistanceKey}"))
-      } else if (sc(ac.naRangeDistanceKey).units != ac.naRangeDistanceUnits) {
-        Invalid(WrongUnitsIssue(s"The position SetupConfig parameter: ${ac.naRangeDistanceKey} must have units of: ${ac.naRangeDistanceUnits}"))
+
+      val pos = sc(ac.compHelper.stimulusPupilXKey).head
+
+      logger.info("min: " + ac.controlConfig.minPosition)
+      logger.info("max: " + ac.controlConfig.maxPosition)
+
+      // compare command position with max and min allowable values from the configuration
+      if (pos < ac.controlConfig.minPosition) {
+        Invalid(ItemValueOutOfRangeIssue(s"Position value of $pos must be greater than ${ac.controlConfig.minPosition}"))
+      } else if (pos > ac.controlConfig.maxPosition) {
+        Invalid(ItemValueOutOfRangeIssue(s"Position value of $pos must be less than ${ac.controlConfig.maxPosition}"))
       } else {
-        val el = sc(ac.naRangeDistanceKey).head
-        if (el < 0) {
-          Invalid(ItemValueOutOfRangeIssue(s"Range distance value of $el for position must be greater than or equal 0 km."))
-        } else Valid
-        
-      
+        Valid
       }
-      
+
     }
-    * 
-    * 
-    */
+
   }
 
 }
