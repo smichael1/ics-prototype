@@ -26,6 +26,8 @@ object AssemblyBasicTests {
   LocationService.initInterface()
 
   val system = ActorSystem("SingleAxisAssemblyBasicTests")
+
+  val thName = "icsGalilHCD"
 }
 
 /**
@@ -34,6 +36,8 @@ object AssemblyBasicTests {
  */
 class AssemblyBasicTests extends TestKit(AssemblyBasicTests.system) with ImplicitSender
     with FunSpecLike with Matchers with BeforeAndAfterAll with LazyLogging {
+
+  import system.dispatcher
 
   // List of top level actors that were created for the HCD (for clean up)
   var hcdActors: List[ActorRef] = Nil
@@ -46,6 +50,9 @@ class AssemblyBasicTests extends TestKit(AssemblyBasicTests.system) with Implici
     hcdActors = cmd.actors
 
     info("hcdActors = " + hcdActors); // sm: this is correct
+
+    expectNoMsg(2.seconds) // XXX FIXME Give time for location service update so we don't get previous value
+    resolveHcd(AssemblyBasicTests.thName)
   }
 
   override def afterAll: Unit = {
@@ -85,6 +92,7 @@ class AssemblyBasicTests extends TestKit(AssemblyBasicTests.system) with Implici
 
   def newTrombone(supervisor: ActorRef, assemblyInfo: AssemblyInfo = assemblyContext.info): ActorRef = {
     val props = getTromboneProps(assemblyInfo, Some(supervisor))
+    expectNoMsg(300.millis)
     system.actorOf(props)
   }
 
@@ -124,18 +132,20 @@ class AssemblyBasicTests extends TestKit(AssemblyBasicTests.system) with Implici
 
       fakeClient.send(tla, Submit(sca))
 
-      val acceptedMsg = fakeClient.expectMsgClass(3.seconds, classOf[CommandResult])
+      val acceptedMsg = fakeClient.expectMsgClass(10.seconds, classOf[CommandResult])
       acceptedMsg.overall shouldBe Accepted
       logger.info(s"Accepted: $acceptedMsg")
 
-      val completeMsg = fakeClient.expectMsgClass(3.seconds, classOf[CommandResult])
+      val completeMsg = fakeClient.expectMsgClass(10.seconds, classOf[CommandResult])
       completeMsg.overall shouldBe AllCompleted
       logger.info(s"CompleteMsg: $completeMsg")
 
-      fakeSupervisor.send(tla, DoShutdown)
-      fakeSupervisor.expectMsg(ShutdownComplete)
-      logger.info("Shutdown Complete")
-      system.stop(tla)
+      completeMsg.details.status(0) shouldBe Completed
+      // Wait a bit to see if there is any spurious messages
+      fakeClient.expectNoMsg(250.milli)
+      //logger.info("Completed: " + completeMsg)
+
+      cleanup(tla)
     }
 
     /*
