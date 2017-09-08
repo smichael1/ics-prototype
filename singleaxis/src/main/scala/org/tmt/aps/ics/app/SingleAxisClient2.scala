@@ -1,7 +1,7 @@
 package org.tmt.aps.ics.app
 
 import org.tmt.aps.ics.shared.AssemblyClientHelper._
-import org.tmt.aps.ics.assembly.SingleAxisComponentHelper
+//import org.tmt.aps.ics.assembly.SingleAxisComponentHelper
 import akka.util.Timeout
 import csw.services.ccs.BlockingAssemblyClient
 import csw.services.ccs.CommandStatus.CommandResult
@@ -24,7 +24,7 @@ object SingleAxisClient2 extends App {
 
   val componentPrefix: String = "org.tmt.aps.ics.singleAxis"
 
-  val compHelper = SingleAxisComponentHelper(componentPrefix)
+  //val compHelper = SingleAxisComponentHelper(componentPrefix)
 
   val assemblyClient: BlockingAssemblyClient = resolveAssembly(taName)
 

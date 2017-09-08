@@ -1,17 +1,18 @@
 package org.tmt.aps.ics.assembly
 
 import com.typesafe.config.Config
-import org.tmt.aps.ics.assembly.AssemblyContext.{SingleAxisCalculationConfig, SingleAxisControlConfig}
 import csw.services.loc.ComponentId
 import csw.services.pkg.Component.AssemblyInfo
 import csw.util.config.Configurations.{ConfigKey, SetupConfig}
 import csw.util.config.UnitsOfMeasure.{degrees, kilometers, micrometers, millimeters}
 import csw.util.config.{BooleanKey, DoubleItem, DoubleKey, StringKey}
 
+import org.tmt.aps.ics.assembly.motion.MotionAssemblyApi
+
 /**
  * TMT Source Code: 10/4/16.
  */
-case class AssemblyContext(info: AssemblyInfo, calculationConfig: SingleAxisCalculationConfig, controlConfig: SingleAxisControlConfig) {
+case class AssemblyContext(info: AssemblyInfo) {
   // Assembly Info
   // These first three are set from the config file
   val componentName: String = info.componentName
@@ -23,68 +24,7 @@ case class AssemblyContext(info: AssemblyInfo, calculationConfig: SingleAxisCalc
   val assemblyComponentId = ComponentId(componentName, componentType)
   val hcdComponentId = info.connections.head.componentId // There is only one
 
-  val compHelper = SingleAxisComponentHelper(componentPrefix)
-
+  
+  val compHelper = new MotionAssemblyApi(componentPrefix)
 }
 
-object AssemblyContext {
-
-  /**
-   * Configuration class
-   *
-   * @param positionScale   value used to scale
-   * @param stageZero       zero point in stage conversion
-   * @param minStageEncoder minimum
-   * @param minEncoderLimit minimum
-   */
-  case class SingleAxisControlConfig(
-    positionScale:   Double,
-    stageZero:       Double,
-    minStageEncoder: Int,
-    minEncoderLimit: Int,
-    maxEncoderLimit: Int,
-    minPosition:     Double,
-    maxPosition:     Double
-  )
-
-  object SingleAxisControlConfig {
-    def apply(config: Config): SingleAxisControlConfig = {
-      // Main prefix for keys used below
-      val prefix = "org.tmt.aps.ics.singleAxis.assembly"
-
-      val positionScale = config.getDouble(s"$prefix.control-config.positionScale")
-      val stageZero = config.getDouble(s"$prefix.control-config.stageZero")
-      val minStageEncoder = config.getInt(s"$prefix.control-config.minStageEncoder")
-      val minEncoderLimit = config.getInt(s"$prefix.control-config.minEncoderLimit")
-      val maxEncoderLimit = config.getInt(s"$prefix.control-config.maxEncoderLimit")
-      val minPosition = config.getDouble(s"$prefix.control-config.minPosition")
-      val maxPosition = config.getDouble(s"$prefix.control-config.maxPosition")
-      SingleAxisControlConfig(positionScale, stageZero, minStageEncoder, minEncoderLimit, maxEncoderLimit, minPosition, maxPosition)
-    }
-  }
-
-  /**
-   * Configuration class - NOT USED IN POC
-   *
-   * @param defaultInitialElevation a default initial eleveation (possibly remove once workign)
-   * @param focusErrorGain          gain value for focus error
-   * @param upperFocusLimit         check for maximum focus error
-   * @param lowerFocusLimit         check for minimum focus error
-   * @param zenithFactor            an algorithm value for scaling zenith angle term
-   */
-  case class SingleAxisCalculationConfig(defaultInitialElevation: Double)
-
-  object SingleAxisCalculationConfig {
-    def apply(config: Config): SingleAxisCalculationConfig = {
-      // Main prefix for keys used below
-      val prefix = "org.tmt.aps.ics.singleAxis.assembly"
-
-      //val defaultInitialElevation = config.getDouble(s"$prefix.calculation-config.defaultInitialElevation")
-
-      val defaultInitialElevation = 1.0
-
-      SingleAxisCalculationConfig(defaultInitialElevation)
-    }
-  }
-
-}

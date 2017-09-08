@@ -1,22 +1,24 @@
-package org.tmt.aps.ics.assembly
+package org.tmt.aps.ics.assembly.motion
 
 import com.typesafe.config.Config
-//import org.tmt.aps.ics.assembly.AssemblyContext.{SingleAxisCalculationConfig, SingleAxisControlConfig}
 import csw.services.loc.ComponentId
 import csw.services.pkg.Component.AssemblyInfo
 import csw.util.config.Configurations.{ConfigKey, SetupConfig}
 import csw.util.config.UnitsOfMeasure.{degrees, kilometers, micrometers, millimeters, meters}
 import csw.services.ccs.BlockingAssemblyClient
-import csw.util.config.{BooleanKey, Configurations, DoubleItem, DoubleKey, IntItem, IntKey, DoubleArrayItem, DoubleArrayKey, DoubleArray, StringKey}
+import csw.util.config.{BooleanKey, Configurations, DoubleItem, DoubleKey, IntItem, IntKey, DoubleArrayItem, DoubleArrayKey, DoubleArray, StringKey, ChoiceKey, Choices}
 import csw.services.ccs.CommandStatus.CommandResult
+import csw.services.ccs.Validation._
+import org.tmt.aps.ics.assembly.AssemblyApi
 
-/**
- * TMT Source Code: 3/29/17.
- */
-case class SingleAxisComponentHelper(componentPrefix: String) {
 
-  // Public command configurations - this is where we define configurations to be used by component tests, validation and client usage
-  // Init submit command
+class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPrefix) {
+  
+  
+  /************************************************************************************************/
+  // command ConfigKeys - all the command config keys for a motion assembly
+  /************************************************************************************************/
+  
   val initPrefix = s"$componentPrefix.init"
   val initCK: ConfigKey = initPrefix
 
@@ -24,6 +26,10 @@ case class SingleAxisComponentHelper(componentPrefix: String) {
   val positionPrefix = s"$componentPrefix.position"
   val positionCK: ConfigKey = positionPrefix
 
+  // Position selection submit command
+  val positionSelectPrefix = s"$componentPrefix.positionSelect"
+  val positionSelectCK: ConfigKey = positionSelectPrefix
+  
   // Datum submit command
   val datumPrefix = s"$componentPrefix.datum"
   val datumCK: ConfigKey = datumPrefix
@@ -32,22 +38,114 @@ case class SingleAxisComponentHelper(componentPrefix: String) {
   val stopPrefix = s"$componentPrefix.stop"
   val stopCK: ConfigKey = stopPrefix
 
-  // SingleAxisAssembly position setup config
-  def positionSC(stimulusPupilX: Double): SetupConfig = SetupConfig(positionCK).add(stimulusPupilXKey -> stimulusPupilX withUnits stimulusPupilXUnits)
-
-  val configurationNameKey = StringKey("initConfigurationName")
-  val configurationVersionKey = StringKey("initConfigurationVersion")
-
-  /**
-   * Send one position command to the SingleAxis Assembly
-   * @param tla the BlockingAssemblyClient returned by getSingleAxis
-   * @param pos some position as a double.  Should be around 90-200 or you will drive it to a limit
-   * @return CommandResult and the conclusion of execution
-   */
-  def position(tla: BlockingAssemblyClient, pos: Double, obsId: String): CommandResult = {
-    tla.submit(Configurations.createSetupConfigArg(obsId, positionSC(pos)))
+  
+  /************************************************************************************************/
+  // command parameter keys
+  /************************************************************************************************/
+  
+  val positionParamKey = DoubleKey("position")
+  val positionParamUnits = meters
+  
+  val typeChoices = Choices.from("absolute", "relative", "offsetFromReference")
+  val typeParamKey = ChoiceKey("type", typeChoices)
+  
+  val coordinateChoices = Choices.from("m1", "sky", "stage")
+  val coordinateParamKey = ChoiceKey("coordinate", coordinateChoices)
+  
+  val posSelectChoices = Choices.from("", "")
+  val posSelectParamKey = ChoiceKey("positionSelection", posSelectChoices)
+  
+  
+  val axisChoices = Choices.from("x", "y", "z", "phi")
+  val axisParamKey = ChoiceKey("axis")
+  
+  /************************************************************************************************/
+  // setupConfigs - a function to create each setupConfig that can be used with a motion assembly
+  /************************************************************************************************/
+  
+  // position setup config
+  def positionSC(positionValue: Double, axisName: String, positionType: String, coordName: String): SetupConfig = {
+    
+    SetupConfig(positionCK).
+    add(axisParamKey -> axisName).
+    add(positionParamKey -> positionValue withUnits positionParamUnits).
+    add(typeParamKey -> positionType).
+    add(coordinateParamKey -> coordName)
   }
 
+  // position selection setup config
+  def positionSC(axisName: String, positionSelection: String): SetupConfig = {
+    
+    SetupConfig(positionCK).
+    add(axisParamKey -> axisName).
+    add(posSelectParamKey -> positionSelection)
+  }
+
+  // init setup config
+  def initSC(): SetupConfig = {
+    SetupConfig(initCK)
+  }
+
+  // datum setup config
+  def datumSC(): SetupConfig = {
+    SetupConfig(datumCK)
+  }
+
+
+  // signature validation functions common to all motion assemblies
+  
+  
+    /**
+   * Validation for init SetupConfig -- currently nothing to validate
+   */
+  def initValidation(sc: SetupConfig): Validation = Valid
+  
+    /**
+   * Validation for the datum SetupConfig -- currently nothing to validate
+   * @param sc the received SetupConfig
+   * @return Valid or Invalid
+   */
+  def datumValidation(sc: SetupConfig): Validation = Valid
+
+  /**
+   * Validation for the stop SetupConfig -- currently nothing to validate
+   * @param sc the received SetupConfig
+   * @return Valid or Invalid
+   */
+  def stopValidation(sc: SetupConfig): Validation = Valid
+  
+  
+  
+  
+  
+  /************************************************************************************************/
+  // helper command functions - these are used to send commands easily without dealing with the 
+  // config keys or setupConfig plumbing
+  /************************************************************************************************/
+ 
+  
+  /**
+   * Send one position command to the assembly
+   * @param tla the BlockingAssemblyClient returned 
+   * 
+   * @return CommandResult and the conclusion of execution
+   */
+  def position(tla: BlockingAssemblyClient, obsId: String, axisName: String, positionType: String, coordName: String, pos: Double): CommandResult = {
+    tla.submit(Configurations.createSetupConfigArg(obsId, positionSC(pos, axisName, positionType, coordName)))
+  }
+
+  /**
+   * Send one position command to the assembly
+   * @param tla the BlockingAssemblyClient returned 
+   * 
+   * @return CommandResult and the conclusion of execution
+   */
+  def position(tla: BlockingAssemblyClient, obsId: String, axisName: String, positionSelection: String): CommandResult = {
+    tla.submit(Configurations.createSetupConfigArg(obsId, positionSC(axisName, positionSelection)))
+  }
+
+  
+  
   /**
    * Initializes the SingleAxis Assembly
    * @param tla the BlockingAssemblyClient returned by getSingleAxis
@@ -60,12 +158,8 @@ case class SingleAxisComponentHelper(componentPrefix: String) {
   // A list of all commands, just do position for now
   val allCommandKeys: List[ConfigKey] = List(positionCK)
 
-  // Shared key values --
-  //val naRangeDistanceKey = DoubleKey("rangeDistance")
-  //val naRangeDistanceUnits = kilometers
 
-  val stimulusPupilXKey = DoubleKey("stimulusPupilX")
-  val stimulusPupilXUnits = meters
+
 
   val stagePositionKey = DoubleKey("stagePosition")
   val stagePositionUnits = millimeters
@@ -81,6 +175,8 @@ case class SingleAxisComponentHelper(componentPrefix: String) {
    * Test code for ICS API
    * These methods should fulfill the API defined in the prototype API document: TMT.CTR.ICD.17.006.DRF01
    *
+   * 
+   * TODO: this area may change
    */
 
   // command configurations for ICS API
@@ -171,18 +267,7 @@ case class SingleAxisComponentHelper(componentPrefix: String) {
     sc
   }
 
-  def setSelectionPoints(points: Array[Double]): SetupConfig = {
-    val sc: SetupConfig = SetupConfig(stageSelectionsCK)
-    sc.add(selectionsKey -> DoubleArray(points))
-  }
 
-  def setReferencePoints(commandX: Boolean, deltaX: Double, commandY: Boolean, deltaY: Double, commandZ: Boolean, deltaZ: Double): SetupConfig = {
-    val sc: SetupConfig = SetupConfig(stageReferenceCK)
-    if (commandX) sc.add(commandXKey -> deltaX withUnits millimeters)
-    if (commandY) sc.add(commandYKey -> deltaY withUnits millimeters)
-    if (commandZ) sc.add(commandZKey -> deltaZ withUnits millimeters)
-    sc
-  }
 
+  
 }
-

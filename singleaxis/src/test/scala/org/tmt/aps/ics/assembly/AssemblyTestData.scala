@@ -1,6 +1,6 @@
 package org.tmt.aps.ics.assembly
 
-import org.tmt.aps.ics.assembly.AssemblyContext.{SingleAxisCalculationConfig, SingleAxisControlConfig}
+import org.tmt.aps.ics.assembly.SingleAxisAssemblyConfig.{SingleAxisCalculationConfig, SingleAxisControlConfig}
 import csw.services.loc.Connection.AkkaConnection
 import csw.services.loc.{ComponentId, ComponentType, Connection}
 import csw.services.loc.ConnectionType.AkkaType
@@ -34,6 +34,8 @@ object AssemblyTestData {
     maxPosition = 1.8
   )
 
-  val TestAssemblyContext = AssemblyContext(TestAssemblyInfo, TestCalculationConfig, TestControlConfig)
+  val TestAssemblyContext = AssemblyContext(TestAssemblyInfo)
+  
+  val TestAssemblyConfig = SingleAxisAssemblyConfig( TestCalculationConfig, TestControlConfig);
 
 }

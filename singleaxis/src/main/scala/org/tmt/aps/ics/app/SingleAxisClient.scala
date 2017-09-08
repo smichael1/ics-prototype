@@ -1,7 +1,7 @@
 package org.tmt.aps.ics.app
 
 import org.tmt.aps.ics.shared.AssemblyClientHelper._
-import org.tmt.aps.ics.assembly.SingleAxisComponentHelper
+import org.tmt.aps.ics.assembly.motion.{MultiAxisMotionAssemblyApi, DiscretePositionMotionAssemblyApi}
 import akka.util.Timeout
 import csw.services.ccs.BlockingAssemblyClient
 import csw.services.ccs.CommandStatus.CommandResult
@@ -22,12 +22,12 @@ object SingleAxisClient extends App {
 
   LocationService.initInterface();
 
-  val taName = "singleAxis"
+  val taName = "stimulusSource"
   val thName = "icsGalilHCD"
 
-  val componentPrefix: String = "org.tmt.aps.ics.singleAxis"
+  val componentPrefix: String = "org.tmt.aps.ics.stimulusSource"
 
-  val compHelper = SingleAxisComponentHelper(componentPrefix)
+  val stimulusSourceApi = MultiAxisMotionAssemblyApi(componentPrefix)
 
   val assemblyClient: BlockingAssemblyClient = resolveAssembly(taName)
 
@@ -41,8 +41,8 @@ object SingleAxisClient extends App {
 
   val obsId: String = "testObsId"
 
-  val commandResult1 = compHelper.init(assemblyClient, obsId)
+  val commandResult1 = stimulusSourceApi.init(assemblyClient, obsId)
 
-  val commandResult2 = compHelper.position(assemblyClient, 60.0, obsId)
+  val commandResult2 = stimulusSourceApi.position(assemblyClient, obsId, "stimulusSourceX", "absolute", "stage", 2.0)
 
 }

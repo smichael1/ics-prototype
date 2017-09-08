@@ -11,7 +11,7 @@ import csw.services.events.EventService.EventMonitor
 import csw.services.events.TelemetryService.TelemetryMonitor
 import csw.services.events.{Event, EventService, TelemetryService}
 import csw.util.config.UnitsOfMeasure.{degrees, kilometers, millimeters, meters}
-import org.tmt.aps.ics.assembly.SingleAxisComponentHelper
+
 
 import scala.concurrent.duration._
 

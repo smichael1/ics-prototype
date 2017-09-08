@@ -24,11 +24,22 @@ class DatumCommand(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisSt
   // Not using stateReceive since no state updates are needed here only writes
   def receive: Receive = {
     case CommandStart =>
+      
+      // sm implements a 'CanAcceptCommand(startState, moveState)'
+      // sm implements a 'Starting state'
+      // sm implements a 'HcdCommand(s)' returning a list of SetupConfigs to be sent to HCD given the input setupConfig
+      // sm implements a 'completion criteria' - idleMatcher in this case
+      // sm implements a 'Ending state'
+      
+      
       if (startState.cmd.head == cmdUninitialized) {
         sender() ! NoLongerValid(WrongInternalStateIssue(s"Assembly state of ${cmd(startState)}/${move(startState)} does not allow datum"))
       } else {
         val mySender = sender()
         sendState(SetState(cmdItem(cmdBusy), moveItem(moveIndexing)))
+        
+        // sm - this is the part that a subclass or handler would provide
+        
         galilHCD ! HcdController.Submit(SetupConfig(axisDatumCK))
         SingleAxisCommandHandler.executeMatch(context, idleMatcher, galilHCD, Some(mySender)) {
           case Completed =>
@@ -36,6 +47,8 @@ class DatumCommand(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisSt
           case Error(message) =>
             log.error(s"Data command match failed with error: $message")
         }
+        
+        
       }
     case StopCurrentCommand =>
       log.debug(">>  DATUM STOPPED")

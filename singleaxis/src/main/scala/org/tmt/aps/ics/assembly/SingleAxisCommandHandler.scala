@@ -23,7 +23,8 @@ import scala.concurrent.duration._
 /**
  * TMT Source Code: 9/21/16.
  */
-class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef], singleAxisPublisher: ActorRef)
+class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef], singleAxisPublisher: ActorRef, saac: SingleAxisAssemblyConfig, 
+    aapi: AssemblyApi)
     extends Actor with ActorLogging with LocationSubscriberClient with SingleAxisStateClient {
 
   import context.dispatcher
@@ -84,6 +85,10 @@ class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef]
 
       log.info("ExecuteOne reached");
 
+      
+      // sm -  user specific Handler should take the configKey as input and return the actor that will handle the command
+      // each "Command" actor should actually subclass from a single Command actor
+      
       sc.configKey match {
         case ac.compHelper.initCK =>
           log.info("Init not fully implemented -- only sets state ready!")
@@ -93,7 +98,7 @@ class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef]
         case ac.compHelper.positionCK =>
           if (isHCDAvailable) {
             log.info("ExecuteOne: positionCK");
-            val positionActorRef = context.actorOf(PositionCommand.props(ac, sc, galilHCD, currentState, Some(singleAxisStateActor)))
+            val positionActorRef = context.actorOf(PositionCommand.props(ac, sc, galilHCD, currentState, Some(singleAxisStateActor), saac, aapi))
             //log.info("positionActorRef = " + positionActorRef)
             context.become(actorExecutingReceive(positionActorRef, commandOriginator))
             self ! CommandStart
@@ -164,8 +169,8 @@ object SingleAxisCommandHandler {
   // message sent too self when command completes
   private case object CommandDone
 
-  def props(assemblyContext: AssemblyContext, galilHCDIn: Option[ActorRef], telemetryGenerator: ActorRef) =
-    Props(new SingleAxisCommandHandler(assemblyContext, galilHCDIn, telemetryGenerator))
+  def props(assemblyContext: AssemblyContext, galilHCDIn: Option[ActorRef], telemetryGenerator: ActorRef, saac: SingleAxisAssemblyConfig, aapi: AssemblyApi) =
+    Props(new SingleAxisCommandHandler(assemblyContext, galilHCDIn, telemetryGenerator, saac, aapi))
 
   def executeMatch(context: ActorContext, stateMatcher: StateMatcher, currentStateSource: ActorRef, replyTo: Option[ActorRef] = None,
                    timeout: Timeout = Timeout(5.seconds))(codeBlock: PartialFunction[CommandStatus, Unit]): Unit = {

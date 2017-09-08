@@ -1,48 +1,49 @@
 package org.tmt.aps.ics.assembly
 
-import org.tmt.aps.ics.assembly.AssemblyContext.{SingleAxisCalculationConfig, SingleAxisControlConfig}
+import org.tmt.aps.ics.assembly.SingleAxisAssemblyConfig.SingleAxisControlConfig
 import csw.util.config.DoubleItem
 
 /**
- * This object contains functions that implement this test version of the single axis assembly algorithms.
+ * This object contains functions to convert from/to encoder/stage stage/user coordinates.
  *
  */
 object Converter {
 
-  // sm - how do we make this generic for any axis?
-
   /**
-   * Converts the component axis distance in user coordinates/units to stage position
-   *
-   * Configuration values determine what the range coordinates and stage coordinates will be and how to transform
-   * TODO: implement.  For now just convert from meters to mm
-   * TODO: do we have conversion constants?  Will we need them?  Do we want to be passing Double, Int, etc or a unit based object?
-   *
-   * @param distance (units to be determined by configuration)
-   * @return stage position in millimeters
-   */
-  def distanceToStagePosition(distance: Double): Double = distance * 1000.0
-
-  /**
-   * Configuration values are passed in the controlConfig, which will be used to limit the values passed and define the position scale
+   * Convert a stage position to encoder counts
    * @param stagePosition is the value of the stage position in millimeters
    * @return position in units of encoder
    */
   def stagePositionToEncoder(controlConfig: SingleAxisControlConfig, stagePosition: Double): Int = {
-    // Scale value to be between 200 and 1000 encoder
-    val encoderValue = (controlConfig.positionScale * (stagePosition - controlConfig.stageZero) + controlConfig.minStageEncoder).toInt
-    val pinnedEncValue = Math.max(controlConfig.minEncoderLimit, Math.min(controlConfig.maxEncoderLimit, encoderValue))
-    pinnedEncValue
+    (controlConfig.encoderToStageScale * (stagePosition - controlConfig.stageHome) + controlConfig.encoderHome).toInt
   }
-
+  
   /**
-   * Configuration values are passed in the controlConfig, which will be used to limit the values passed and define the position scale
-   * @param stagePosition is the value of the stage position in millimeters
-   * @return position in units of encoder
+   * Convert an encoder count to a stage position
+   * @param position in units of encoder
+   * @return stagePosition is the value of the stage position in millimeters
    */
   def encoderToStagePosition(controlConfig: SingleAxisControlConfig, encoderCounts: Int): Double = {
-    // Scale value to be between 200 and 1000 encoder
-    ((encoderCounts - controlConfig.minStageEncoder) / controlConfig.positionScale) + controlConfig.stageZero
+    ((encoderCounts - controlConfig.encoderHome) / controlConfig.encoderToStageScale) + controlConfig.stageHome
 
   }
+  
+  /**
+   * Convert a user position to stage position
+   * @param userPosition is the value of the user position in meters or radians
+   * @return stage position in mm
+   */
+  def userPositionToStagePosition(controlConfig: SingleAxisControlConfig, userPosition: Double): Double = {
+    (controlConfig.stageToUserScale * (userPosition - controlConfig.userHome) + controlConfig.stageHome)
+  }
+  
+  /**
+   * Convert a stage position to a user position
+   * @param stage position in mm
+   * @return userPosition is the value of the user position in meters or radians
+   */
+  def stagePositionToUserPosition(controlConfig: SingleAxisControlConfig, stagePosition: Double): Double = {
+    ((stagePosition - controlConfig.stageHome) / controlConfig.stageToUserScale) + controlConfig.userHome
+  }
+
 }

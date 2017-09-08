@@ -1,7 +1,7 @@
 package org.tmt.aps.ics.assembly
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
-import org.tmt.aps.ics.assembly.SingleAxisAssembly.UpdateGalilHCD
+import org.tmt.aps.ics.assembly.AkkaAssembly.UpdateGalilHCD
 import org.tmt.aps.ics.assembly.SingleAxisPublisher.{AxisStateUpdate, AxisStatsUpdate, AssemblyStateUpdate}
 import org.tmt.aps.ics.hcd.GalilHCD
 import csw.services.ccs.HcdController
@@ -14,7 +14,7 @@ import org.tmt.aps.ics.assembly.SingleAxisStateActor.SingleAxisState
 import org.tmt.aps.ics.assembly.SingleAxisStateActor._
 import csw.util.config.{StringKey, StringItem}
 import org.tmt.aps.ics.assembly.Converter._
-import org.tmt.aps.ics.assembly.AssemblyContext.{SingleAxisControlConfig}
+import org.tmt.aps.ics.assembly.SingleAxisAssemblyConfig.{SingleAxisControlConfig}
 import csw.util.config.UnitsOfMeasure.{degrees, kilometers, micrometers, millimeters, meters}
 import csw.util.config.{BooleanKey, Configurations, DoubleItem, DoubleKey, IntItem, IntKey, DoubleArrayItem, DoubleArrayKey, DoubleArray, StringKey}
 
@@ -43,7 +43,7 @@ import csw.util.config.{BooleanKey, Configurations, DoubleItem, DoubleKey, IntIt
  * @param galilHCDIn        initial actorRef of the galilHCD as a [[scala.Option]]
  * @param eventPublisher     initial actorRef of an instance of the SingleAxisPublisher as [[scala.Option]]
  */
-class TelemetryGenerator(assemblyContext: AssemblyContext, galilHCDIn: Option[ActorRef], eventPublisher: Option[ActorRef]) extends Actor with ActorLogging with TimeServiceScheduler with LocationSubscriberClient {
+class TelemetryGenerator(assemblyContext: AssemblyContext, galilHCDIn: Option[ActorRef], eventPublisher: Option[ActorRef], handler: TelemetryGeneratorHandler) extends Actor with ActorLogging with TimeServiceScheduler with LocationSubscriberClient {
 
   import TelemetryGenerator._
   import GalilHCD._
@@ -190,22 +190,14 @@ class TelemetryGenerator(assemblyContext: AssemblyContext, galilHCDIn: Option[Ac
     log.debug(s"publish current state: $cs")
     log.debug(s"event publisher: $eventPublisher")
 
-    // TODO: need to convert position from postionKey from encoder to meters
-    val posItem = cs(positionKey);
-    val posEnc = posItem.values(0);
-    // convert to meters
-    val stagePosition: Double = encoderToStagePosition(assemblyContext.controlConfig, posEnc)
+    val axisStateUpdate: AxisStateUpdate = handler.generateAxisStateUpdate(cs)
 
-    val stagePositionKey = DoubleKey("stagePosition")
-    val stagePositionUnits = millimeters
-
-    val stagePositionItem = stagePositionKey -> stagePosition withUnits stagePositionUnits
-
-    eventPublisher.foreach(_ ! AxisStateUpdate(cs(axisNameKey), cs(positionKey), cs(stateKey), cs(inLowLimitKey), cs(inHighLimitKey), cs(inHomeKey), stagePositionItem))
+    eventPublisher.foreach(_ ! axisStateUpdate)
   }
 
   private def publishStatsUpdate(cs: CurrentState): Unit = {
     log.debug("publish diag stats")
+
     eventPublisher.foreach(_ ! AxisStatsUpdate(cs(axisNameKey), cs(datumCountKey), cs(moveCountKey), cs(homeCountKey), cs(limitCountKey), cs(successCountKey), cs(failureCountKey), cs(cancelCountKey)))
   }
 
@@ -217,10 +209,14 @@ class TelemetryGenerator(assemblyContext: AssemblyContext, galilHCDIn: Option[Ac
 
 }
 
+trait TelemetryGeneratorHandler {
+  def generateAxisStateUpdate(cs: CurrentState): AxisStateUpdate
+}
+
 object TelemetryGenerator {
 
-  def props(assemblyContext: AssemblyContext, tromboneHCD: Option[ActorRef], eventPublisher: Option[ActorRef]): Props =
-    Props(classOf[TelemetryGenerator], assemblyContext, tromboneHCD, eventPublisher)
+  def props(assemblyContext: AssemblyContext, tromboneHCD: Option[ActorRef], eventPublisher: Option[ActorRef], handler: TelemetryGeneratorHandler): Props =
+    Props(classOf[TelemetryGenerator], assemblyContext, tromboneHCD, eventPublisher, handler)
 
   /**
    * Internal messages used by diag publisher
