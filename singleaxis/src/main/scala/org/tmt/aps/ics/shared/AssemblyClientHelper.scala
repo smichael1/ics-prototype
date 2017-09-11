@@ -12,7 +12,6 @@ import csw.services.events.TelemetryService.TelemetryMonitor
 import csw.services.events.{Event, EventService, TelemetryService}
 import csw.util.config.UnitsOfMeasure.{degrees, kilometers, millimeters, meters}
 
-
 import scala.concurrent.duration._
 
 object AssemblyClientHelper extends LazyLogging {

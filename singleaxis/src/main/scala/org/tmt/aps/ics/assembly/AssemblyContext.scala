@@ -24,7 +24,6 @@ case class AssemblyContext(info: AssemblyInfo) {
   val assemblyComponentId = ComponentId(componentName, componentType)
   val hcdComponentId = info.connections.head.componentId // There is only one
 
-  
   val compHelper = new MotionAssemblyApi(componentPrefix)
 }
 

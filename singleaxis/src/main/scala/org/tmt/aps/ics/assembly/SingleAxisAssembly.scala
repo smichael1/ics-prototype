@@ -4,7 +4,6 @@ import java.io.File
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.util.Timeout
-import org.tmt.aps.ics.assembly.SingleAxisAssemblyConfig.{SingleAxisControlConfig}
 
 import csw.services.alarms.AlarmService
 import csw.services.ccs.AssemblyMessages.{DiagnosticMode, OperationsMode}
@@ -25,7 +24,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import org.tmt.aps.ics.assembly.motion.MotionTelemetryGenerationHandler
 
-import org.tmt.aps.ics.assembly.motion.MultiAxisMotionAssemblyApi  // FIXME - should not be here
+import org.tmt.aps.ics.assembly.motion.MultiAxisMotionAssemblyApi // FIXME - should not be here
 
 //import scala.concurrent._
 
@@ -43,9 +42,10 @@ class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaA
 
   import SingleAxisAssembly._
 
-  implicit val saac: SingleAxisAssemblyConfig = generateAssemblyConfig()
+  implicit val maac: MultiAxisAssemblyConfig = generateAssemblyConfig()
   implicit val aapi: AssemblyApi = MultiAxisMotionAssemblyApi("duh") // TODO: populate this
 
+  log.info("SingleAxisAssembly startup 222")
   init
 
   def init() = {
@@ -55,14 +55,14 @@ class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaA
   def initTelemetryGenerator(): ActorRef = {
 
     // This sets up the diagnostic data publisher - setting Var here
-    context.actorOf(TelemetryGenerator.props(ac, galilHCD, Some(eventPublisher), new MotionTelemetryGenerationHandler(saac)))
+    context.actorOf(TelemetryGenerator.props(ac, galilHCD, Some(eventPublisher), new MotionTelemetryGenerationHandler(maac)))
 
   }
 
   def initCommandHandler(): ActorRef = {
 
     // Setup command handler for assembly - note that CommandHandler connects directly to galilHCD here, not state receiver
-    context.actorOf(SingleAxisCommandHandler.props(ac, galilHCD, eventPublisher, saac, aapi))
+    context.actorOf(SingleAxisCommandHandler.props(ac, galilHCD, eventPublisher, maac, aapi))
 
   }
 
@@ -80,35 +80,41 @@ class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaA
   // Gets the assembly configurations from the config service, or a resource file, if not found and
   // returns the two parsed objects.
 
-  def getAssemblyConfigs: Future[(SingleAxisControlConfig)] = {
+  def getAssemblyConfigs: Future[(MultiAxisAssemblyConfig)] = {
     // This is required by the ConfigServiceClient
     implicit val system = context.system
     import system.dispatcher
 
     implicit val timeout = Timeout(3.seconds)
-    val f = ConfigServiceClient.getConfigFromConfigService(singleAxisConfigFile, resource = Some(resource))
+    val f = ConfigServiceClient.getConfigFromConfigService(multiAxisConfigFile, resource = Some(resource))
+
+    log.info("GOT HERE")
+
     // parse the future
-    f.map(configOpt => (SingleAxisControlConfig(configOpt.get)))
+    f.map(configOpt => (MultiAxisAssemblyConfig(configOpt.get)))
+
   }
 
-  def generateAssemblyConfig(): SingleAxisAssemblyConfig = {
+  def generateAssemblyConfig(): MultiAxisAssemblyConfig = {
 
-    val controlConfig = Await.result(getAssemblyConfigs, 5.seconds)
-    val singleAxisAssemblyConfig = SingleAxisAssemblyConfig(controlConfig)
-
-    singleAxisAssemblyConfig
+    val multiAxisConfig = Await.result(getAssemblyConfigs, 5.seconds)
+    multiAxisConfig
   }
 
 }
 
 /**
+ *
  * All assembly messages are indicated here
  */
 object SingleAxisAssembly {
 
+  // TODO: we will need a better way to describe the config using the assembly name: e.g. stimulusPupilStage
+
   // Get the single axis assembly config file from the config service, or use the given resource file if that doesn't work
-  val singleAxisConfigFile = new File("poc/singleAxis")
-  val resource = new File("singleAxisAssembly.conf")
+  val multiAxisConfigFile = new File("ics/stimulusPupilStage")
+  //val resource = new File("stimulusPupilStageAssembly.conf")
+  val resource = new File("stimulusPupilStageAssembly.conf")
 
   def props(assemblyInfo: AssemblyInfo, supervisor: ActorRef) = Props(classOf[SingleAxisAssembly], assemblyInfo, supervisor)
 

@@ -15,33 +15,32 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.pattern.ask
 
-import org.tmt.aps.ics.assembly.motion.MotionAssemblyApi  // TODO: most commands for motion should be in this package too
+import org.tmt.aps.ics.assembly.motion.MotionAssemblyApi // TODO: most commands for motion should be in this package too
 
 /**
  * TMT Source Code: 10/22/16.
  */
-class PositionCommand(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, initialState: SingleAxisState, stateActor: Option[ActorRef], 
-    saac: SingleAxisAssemblyConfig, maapi: MotionAssemblyApi) extends Actor with ActorLogging {
+class PositionCommand(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, initialState: SingleAxisState, stateActor: Option[ActorRef],
+                      maac: MultiAxisAssemblyConfig, maapi: MotionAssemblyApi) extends Actor with ActorLogging {
 
   import SingleAxisCommandHandler._
   import SingleAxisStateActor._
 
   def receive: Receive = {
     case CommandStart =>
-      
+
       if (canAcceptCmd(initialState)) {
 
         log.info("PositionCommand:: CommandStart accepted")
 
         sendState(startState())
- 
+
         val mySender = sender()
 
         val scOut = generateHcdCmds(sc)
-        
-        
+
         galilHCD ! HcdController.Submit(scOut)
-        
+
         val stateMatcher = completionCriteriaMatcher(sc)
 
         // sm completionCriteria
@@ -68,71 +67,67 @@ class PositionCommand(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, 
     stateActor.foreach(actorRef => Await.ready(actorRef ? setState, timeout.duration))
   }
 
-  
-  
   def canAcceptCommand(startState: SingleAxisState) = {
     canAcceptPositionCmd(startState)
   }
-  
+
   def startState(): SetState = {
     SetState(cmdItem(cmdBusy), moveItem(moveMoving))
   }
-  
+
   // TODO: generalize to a list of SetupConfigs
   def generateHcdCmds(assemblyCmd: SetupConfig): SetupConfig = {
-       
+
     // Position key is encoder units
     SetupConfig(axisMoveCK).add(positionKey -> encoderPosition(assemblyCmd) withUnits encoder)
-        
+
   }
-  
+
   private def encoderPosition(assemblyCmd: SetupConfig): Int = {
-    
+
     val distance = assemblyCmd(maapi.positionParamKey)
-    
+
     // TODO: the actual command depends on the 'type' and 'coord' parameter values
-    
+
     // 1. convert position value to stage coordinates if necessary
-    
+
     // 2. convert control config max and min encoder positions for this assembly into stage range in mm
-    
+
     // 3. match type param
-    
+
     // 3a: type = absolute.  Validate desired stage position within stage range
-    
+
     // 3b: type = relative.  Add position value to current position in stage coordinates, validate desired stage position withing stage range
-    
+
     // 3c: type = deltaFromRef.  Add position value to reference position in stage coordinates, validate desired stage position within stage range.
 
-    
+    val axisConfig = maac.axesmap.get(assemblyCmd.getByName("axisName").get)
 
     // Convert distance to encoder units from mm
-    val stagePosition = Converter.userPositionToStagePosition(saac.controlConfig, distance.head)
-    val encoderPosition = Converter.stagePositionToEncoder(saac.controlConfig, stagePosition)
+    val stagePosition = Converter.userPositionToStagePosition(axisConfig.get, distance.head)
+    val encoderPosition = Converter.stagePositionToEncoder(axisConfig.get, stagePosition)
 
     log.info(s"Using rangeDistance: ${distance.head} to get stagePosition: $stagePosition to encoder: $encoderPosition")
 
     encoderPosition
   }
-  
+
   def completionCriteriaMatcher(assemblyCmd: SetupConfig) = {
-    
+
     val stateMatcher = posMatcher(encoderPosition(assemblyCmd))
-    
+
     stateMatcher
   }
-  
+
   def endState(): SetState = {
     SetState(cmdItem(cmdReady), moveItem(moveIndexed))
   }
-  
-  
-}
 
+}
 
 object PositionCommand {
 
-  def props(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef], 
-      saac: SingleAxisAssemblyConfig, aapi: AssemblyApi): Props =
-    Props(classOf[PositionCommand], ac, sc, galilHCD, startState, stateActor, saac)
+  def props(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef],
+            maac: MultiAxisAssemblyConfig, aapi: AssemblyApi): Props =
+    Props(classOf[PositionCommand], ac, sc, galilHCD, startState, stateActor, maac)
 }

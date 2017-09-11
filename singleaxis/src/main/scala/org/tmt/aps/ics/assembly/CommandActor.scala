@@ -20,27 +20,27 @@ import csw.services.ccs.{DemandMatcher, MultiStateMatcherActor, StateMatcher}
 /**
  * TMT Source Code: 10/22/16.
  */
-class CommandActor(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, initialState: SingleAxisState, stateActor: Option[ActorRef], 
-    saac: SingleAxisAssemblyConfig, commandHandler: CommandHandler) extends Actor with ActorLogging {
+class CommandActor(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, initialState: SingleAxisState, stateActor: Option[ActorRef],
+                   sac: SingleAxisConfig, commandHandler: CommandHandler) extends Actor with ActorLogging {
 
   import SingleAxisCommandHandler._
   import SingleAxisStateActor._
 
   def receive: Receive = {
     case CommandStart =>
-      
+
       if (canAcceptCmd(initialState)) {
 
         log.info("PositionCommand:: CommandStart accepted")
 
         sendState(commandHandler.startState())
- 
+
         val mySender = sender()
 
         val scOut = commandHandler.generateHcdCmds(sc)
-        
+
         galilHCD ! HcdController.Submit(scOut)
-        
+
         val stateMatcher = commandHandler.completionCriteriaMatcher(sc)
 
         // sm completionCriteria
@@ -67,29 +67,25 @@ class CommandActor(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, ini
     stateActor.foreach(actorRef => Await.ready(actorRef ? setState, timeout.duration))
   }
 
-  
-  
-
-  
 }
 
 trait CommandHandler {
-    
+
   def canAcceptCommand(startState: SingleAxisState)
-  
-  def startState(): SetState 
+
+  def startState(): SetState
 
   def generateHcdCmds(assemblyCmd: SetupConfig): SetupConfig
- 
+
   def completionCriteriaMatcher(assemblyCmd: SetupConfig): DemandMatcher
- 
-  def endState(): SetState 
-  
+
+  def endState(): SetState
+
 }
 
 object CommandActor {
 
-  def props(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef], 
-      saac: SingleAxisAssemblyConfig, commandHandler: CommandHandler): Props =
-    Props(classOf[PositionCommand], ac, sc, galilHCD, startState, stateActor, saac, commandHandler)
+  def props(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef],
+            sac: SingleAxisConfig, commandHandler: CommandHandler): Props =
+    Props(classOf[PositionCommand], ac, sc, galilHCD, startState, stateActor, sac, commandHandler)
 }

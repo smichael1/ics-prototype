@@ -5,7 +5,7 @@ import csw.util.config.StateVariable.CurrentState
 import org.tmt.aps.ics.assembly.Converter._
 import csw.util.config.UnitsOfMeasure.{millimeters}
 import csw.util.config.{DoubleKey}
-import org.tmt.aps.ics.assembly.SingleAxisAssemblyConfig
+import org.tmt.aps.ics.assembly.MultiAxisAssemblyConfig
 import org.tmt.aps.ics.assembly.TelemetryGeneratorHandler
 
 /**
@@ -14,17 +14,22 @@ import org.tmt.aps.ics.assembly.TelemetryGeneratorHandler
  * @param galilHCDIn        initial actorRef of the galilHCD as a [[scala.Option]]
  * @param eventPublisher     initial actorRef of an instance of the SingleAxisPublisher as [[scala.Option]]
  */
-class MotionTelemetryGenerationHandler(assemblyConfig: SingleAxisAssemblyConfig) extends TelemetryGeneratorHandler {
+class MotionTelemetryGenerationHandler(assemblyConfig: MultiAxisAssemblyConfig) extends TelemetryGeneratorHandler {
 
   import org.tmt.aps.ics.hcd.GalilHCD._
 
   def generateAxisStateUpdate(cs: CurrentState): AxisStateUpdate = {
 
-    // TODO: need to convert position from postionKey from encoder to meters
+    // TODO: axisName needs to be part of CurrentState
+    val axisName: Option[String] = cs.getByName("axisName")
+
+    val axisConfig = assemblyConfig.axesmap.get(axisName.get)
+
+    // convert position from postionKey from encoder to meters
     val posItem = cs(positionKey);
     val posEnc = posItem.values(0);
     // convert to meters
-    val stagePosition: Double = encoderToStagePosition(assemblyConfig.controlConfig, posEnc)
+    val stagePosition: Double = encoderToStagePosition(axisConfig.get, posEnc)
 
     val stagePositionKey = DoubleKey("stagePosition")
     val stagePositionUnits = millimeters

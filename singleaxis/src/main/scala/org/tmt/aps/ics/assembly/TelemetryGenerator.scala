@@ -14,7 +14,6 @@ import org.tmt.aps.ics.assembly.SingleAxisStateActor.SingleAxisState
 import org.tmt.aps.ics.assembly.SingleAxisStateActor._
 import csw.util.config.{StringKey, StringItem}
 import org.tmt.aps.ics.assembly.Converter._
-import org.tmt.aps.ics.assembly.SingleAxisAssemblyConfig.{SingleAxisControlConfig}
 import csw.util.config.UnitsOfMeasure.{degrees, kilometers, micrometers, millimeters, meters}
 import csw.util.config.{BooleanKey, Configurations, DoubleItem, DoubleKey, IntItem, IntKey, DoubleArrayItem, DoubleArrayKey, DoubleArray, StringKey}
 
