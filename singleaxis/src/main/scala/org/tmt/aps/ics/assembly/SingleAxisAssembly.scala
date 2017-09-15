@@ -86,6 +86,11 @@ class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaA
     import system.dispatcher
 
     implicit val timeout = Timeout(3.seconds)
+
+    // config file and fallback resource is based on the deployment component name
+    val multiAxisConfigFile = new File(s"ics/${info.componentName}")
+    val resource = new File(s"${info.componentName}.conf")
+
     val f = ConfigServiceClient.getConfigFromConfigService(multiAxisConfigFile, resource = Some(resource))
 
     log.info("GOT HERE")
@@ -108,13 +113,6 @@ class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaA
  * All assembly messages are indicated here
  */
 object SingleAxisAssembly {
-
-  // TODO: we will need a better way to describe the config using the assembly name: e.g. stimulusPupilStage
-
-  // Get the single axis assembly config file from the config service, or use the given resource file if that doesn't work
-  val multiAxisConfigFile = new File("ics/stimulusPupilStage")
-  //val resource = new File("stimulusPupilStageAssembly.conf")
-  val resource = new File("stimulusPupilStageAssembly.conf")
 
   def props(assemblyInfo: AssemblyInfo, supervisor: ActorRef) = Props(classOf[SingleAxisAssembly], assemblyInfo, supervisor)
 

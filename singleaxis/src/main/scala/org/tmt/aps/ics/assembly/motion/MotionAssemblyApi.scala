@@ -145,6 +145,7 @@ class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPr
   // A list of all commands, just do position for now
   val allCommandKeys: List[ConfigKey] = List(positionCK)
 
+  
   val stagePositionKey = DoubleKey("stagePosition")
   val stagePositionUnits = millimeters
   def spos(pos: Double): DoubleItem = stagePositionKey -> pos withUnits stagePositionUnits
@@ -155,100 +156,5 @@ class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPr
   val axisStateEventPrefix = s"$componentPrefix.axis1State"
   val axisStatsEventPrefix = s"$componentPrefix.axis1Stats"
 
-  /**
-   * Test code for ICS API
-   * These methods should fulfill the API defined in the prototype API document: TMT.CTR.ICD.17.006.DRF01
-   *
-   *
-   * TODO: this area may change
-   */
-
-  // command configurations for ICS API
-
-  // Reset submit command
-  val resetPrefix = s"$componentPrefix.reset"
-  val resetCK: ConfigKey = resetPrefix
-
-  // offset submit command
-  val offsetPrefix = s"$componentPrefix.offset"
-  val offsetCK: ConfigKey = offsetPrefix
-
-  // stagePosition
-  val stagePositionPrefix = s"$componentPrefix.stagePosition"
-  val stagePositionCK: ConfigKey = stagePositionPrefix
-
-  // select
-  val selectPrefix = s"$componentPrefix.select"
-  val selectCK: ConfigKey = selectPrefix
-
-  // stageSelections
-  val stageSelectionsPrefix = s"$componentPrefix.stageSelections"
-  val stageSelectionsCK: ConfigKey = stageSelectionsPrefix
-
-  // stageReference
-  val stageReferencePrefix = s"$componentPrefix.stageReference"
-  val stageReferenceCK: ConfigKey = stageReferencePrefix
-
-  val commandXKey = DoubleKey("commandX")
-  val commandYKey = DoubleKey("commandY")
-  val commandZKey = DoubleKey("commandZ")
-  val commandPhiKey = DoubleKey("commandPhi")
-  val selectKey = IntKey("select")
-  val selectionsKey = DoubleArrayKey("selections")
-
-  def positionStimulus(commandX: Boolean, deltaX: Double, commandY: Boolean, deltaY: Double, commandZ: Boolean, deltaZ: Double): SetupConfig = {
-
-    val sc: SetupConfig = SetupConfig(positionCK)
-    if (commandX) sc.add(commandXKey -> deltaX withUnits degrees)
-    if (commandY) sc.add(commandYKey -> deltaY withUnits degrees)
-    if (commandZ) sc.add(commandZKey -> deltaZ withUnits meters)
-    sc
-  }
-
-  def offsetStimulus(commandX: Boolean, deltaX: Double, commandY: Boolean, deltaY: Double, commandZ: Boolean, deltaZ: Double): SetupConfig = {
-
-    val sc: SetupConfig = SetupConfig(offsetCK)
-    if (commandX) sc.add(commandXKey -> deltaX withUnits degrees)
-    if (commandY) sc.add(commandYKey -> deltaY withUnits degrees)
-    if (commandZ) sc.add(commandZKey -> deltaZ withUnits meters)
-    sc
-  }
-
-  def positionPupil(commandX: Boolean, deltaX: Double, commandY: Boolean, deltaY: Double, commandPhi: Boolean, deltaPhi: Double): SetupConfig = {
-
-    val sc: SetupConfig = SetupConfig(positionCK)
-    if (commandX) sc.add(commandXKey -> deltaX withUnits meters)
-    if (commandY) sc.add(commandYKey -> deltaY withUnits meters)
-    if (commandPhi) sc.add(commandZKey -> deltaPhi withUnits degrees)
-    sc
-  }
-
-  def offsetPupil(commandX: Boolean, deltaX: Double, commandY: Boolean, deltaY: Double, commandPhi: Boolean, deltaPhi: Double): SetupConfig = {
-
-    val sc: SetupConfig = SetupConfig(offsetCK)
-    if (commandX) sc.add(commandXKey -> deltaX withUnits meters)
-    if (commandY) sc.add(commandYKey -> deltaY withUnits meters)
-    if (commandPhi) sc.add(commandZKey -> deltaPhi withUnits degrees)
-    sc
-  }
-
-  def positionStage(commandX: Boolean, deltaX: Double, commandY: Boolean, deltaY: Double, commandZ: Boolean, deltaZ: Double): SetupConfig = {
-
-    val sc: SetupConfig = SetupConfig(stagePositionCK)
-    if (commandX) sc.add(commandXKey -> deltaX withUnits millimeters)
-    if (commandY) sc.add(commandYKey -> deltaY withUnits millimeters)
-    if (commandZ) sc.add(commandZKey -> deltaZ withUnits millimeters)
-    sc
-  }
-
-  def reset(): SetupConfig = {
-    SetupConfig(resetCK)
-  }
-
-  def select(selection: Int): SetupConfig = {
-    val sc: SetupConfig = SetupConfig(selectCK)
-    sc.add(selectKey -> selection)
-    sc
-  }
 
 }

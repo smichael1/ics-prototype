@@ -7,15 +7,16 @@ import org.tmt.aps.ics.assembly.SingleAxisConfig
 import org.tmt.aps.ics.assembly.AssemblyApi
 import org.tmt.aps.ics.assembly.Converter
 
+
 case class MultiAxisMotionAssemblyApi(componentPrefix: String) extends MotionAssemblyApi(componentPrefix) {
 
   override def validateSignature(candidateSC: SetupConfig): Validation = {
 
     candidateSC.configKey match {
-      case initCK     => initValidation(candidateSC)
-      case datumCK    => datumValidation(candidateSC)
-      case stopCK     => stopValidation(candidateSC)
-      case positionCK => positionValidation(candidateSC)
+      case `initCK`     => initValidation(candidateSC)
+      case `datumCK`    => datumValidation(candidateSC)
+      case `stopCK`     => stopValidation(candidateSC)
+      case `positionCK` => positionValidation(candidateSC)
       case x          => Invalid(OtherIssue(s"SetupConfig with prefix $x is not supported"))
     }
   }
