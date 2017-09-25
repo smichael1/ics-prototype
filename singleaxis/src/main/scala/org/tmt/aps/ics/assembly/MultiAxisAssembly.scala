@@ -29,23 +29,23 @@ import org.tmt.aps.ics.assembly.motion.MultiAxisMotionAssemblyApi // FIXME - sho
 //import scala.concurrent._
 
 /**
- * Top Level Actor for Single Axis Assembly
+ * Top Level Actor for Multi Axis Assembly
  *
- * SingleAxisAssembly starts up the component doing the following:
+ * MultiAxisAssembly starts up the component doing the following:
  * creating all needed actors,
  * handling initialization,
  * participating in lifecycle with Supervisor,
  * handles locations for distribution throughout component
  * receives comamnds and forwards them to the CommandHandler by extending the AssemblyController
  */
-class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaAssembly(info, supervisor) {
+class MultiAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaAssembly(info, supervisor) {
 
-  import SingleAxisAssembly._
+  import MultiAxisAssembly._
 
   implicit val maac: MultiAxisAssemblyConfig = generateAssemblyConfig()
-  implicit val aapi: AssemblyApi = MultiAxisMotionAssemblyApi("duh") // TODO: populate this
+  implicit val aapi = MultiAxisMotionAssemblyApi(info.prefix)
 
-  log.info("SingleAxisAssembly startup 222")
+  log.info(s"MultiAxisAssembly (${info.prefix}) startup")
   init
 
   def init() = {
@@ -93,8 +93,6 @@ class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaA
 
     val f = ConfigServiceClient.getConfigFromConfigService(multiAxisConfigFile, resource = Some(resource))
 
-    log.info("GOT HERE")
-
     // parse the future
     f.map(configOpt => (MultiAxisAssemblyConfig(configOpt.get)))
 
@@ -112,8 +110,8 @@ class SingleAxisAssembly(info: AssemblyInfo, supervisor: ActorRef) extends AkkaA
  *
  * All assembly messages are indicated here
  */
-object SingleAxisAssembly {
+object MultiAxisAssembly {
 
-  def props(assemblyInfo: AssemblyInfo, supervisor: ActorRef) = Props(classOf[SingleAxisAssembly], assemblyInfo, supervisor)
+  def props(assemblyInfo: AssemblyInfo, supervisor: ActorRef) = Props(classOf[MultiAxisAssembly], assemblyInfo, supervisor)
 
 }

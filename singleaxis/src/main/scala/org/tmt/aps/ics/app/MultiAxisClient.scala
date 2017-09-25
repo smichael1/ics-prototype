@@ -11,7 +11,7 @@ import csw.services.events.{TelemetryService}
 /**
  * Starts standalone client application.
  */
-object SingleAxisClient extends App {
+object MultiAxisClient extends App {
 
   import csw.services.sequencer.SequencerEnv._
   import csw.services.loc.LocationService;
@@ -22,10 +22,10 @@ object SingleAxisClient extends App {
 
   LocationService.initInterface();
 
-  val taName = "stimulusSource"
+  val taName = "stimulusPupilStageAssembly"
   val thName = "icsGalilHCD"
 
-  val componentPrefix: String = "org.tmt.aps.ics.stimulusSource"
+  val componentPrefix: String = "org.tmt.aps.ics.stimulusPupilStageAssembly"
 
   val stimulusSourceApi = MultiAxisMotionAssemblyApi(componentPrefix)
 
@@ -33,7 +33,7 @@ object SingleAxisClient extends App {
 
   val hcdClient: HcdClient = resolveHcd(thName)
 
-  //LocationService.initInterface()
+  LocationService.initInterface()
 
   val telemetryService: TelemetryService = Await.result(TelemetryService(), timeout.duration)
 
@@ -41,8 +41,8 @@ object SingleAxisClient extends App {
 
   val obsId: String = "testObsId"
 
-  val commandResult1 = stimulusSourceApi.init(assemblyClient, obsId, "stimulusSourceX")
+  val commandResult1 = stimulusSourceApi.init(assemblyClient, obsId, "stimulusPupilX")
 
-  val commandResult2 = stimulusSourceApi.position(assemblyClient, obsId, "stimulusSourceX", "absolute", "stage", 2.0)
+  //val commandResult2 = stimulusSourceApi.position(assemblyClient, obsId, "stimulusSourceX", "absolute", "stage", 2.0)
 
 }

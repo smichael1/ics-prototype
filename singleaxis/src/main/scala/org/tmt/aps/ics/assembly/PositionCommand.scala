@@ -21,7 +21,7 @@ import org.tmt.aps.ics.assembly.motion.MotionAssemblyApi // TODO: most commands 
  * TMT Source Code: 10/22/16.
  */
 class PositionCommand(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, initialState: SingleAxisState, stateActor: Option[ActorRef],
-                      maac: MultiAxisAssemblyConfig, maapi: MotionAssemblyApi) extends Actor with ActorLogging {
+                      sac: SingleAxisConfig, maapi: MotionAssemblyApi) extends Actor with ActorLogging {
 
   import SingleAxisCommandHandler._
   import SingleAxisStateActor._
@@ -101,11 +101,9 @@ class PositionCommand(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, 
 
     // 3c: type = deltaFromRef.  Add position value to reference position in stage coordinates, validate desired stage position within stage range.
 
-    val axisConfig = maac.axesmap.get(assemblyCmd.getByName("axisName").get)
-
     // Convert distance to encoder units from mm
-    val stagePosition = Converter.userPositionToStagePosition(axisConfig.get, distance.head)
-    val encoderPosition = Converter.stagePositionToEncoder(axisConfig.get, stagePosition)
+    val stagePosition = Converter.userPositionToStagePosition(sac, distance.head)
+    val encoderPosition = Converter.stagePositionToEncoder(sac, stagePosition)
 
     log.info(s"Using rangeDistance: ${distance.head} to get stagePosition: $stagePosition to encoder: $encoderPosition")
 
@@ -128,6 +126,6 @@ class PositionCommand(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, 
 object PositionCommand {
 
   def props(ac: AssemblyContext, sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef],
-            maac: MultiAxisAssemblyConfig, aapi: AssemblyApi): Props =
-    Props(classOf[PositionCommand], ac, sc, galilHCD, startState, stateActor, maac)
+            sac: SingleAxisConfig, aapi: AssemblyApi): Props =
+    Props(classOf[PositionCommand], ac, sc, galilHCD, startState, stateActor, sac)
 }

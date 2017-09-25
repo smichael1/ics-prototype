@@ -17,6 +17,7 @@ import csw.services.loc.LocationSubscriberClient
 import csw.util.config.Configurations.SetupConfig
 import csw.util.config.StateVariable.DemandState
 
+import org.tmt.aps.ics.assembly.motion.MultiAxisMotionAssemblyApi
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -24,7 +25,7 @@ import scala.concurrent.duration._
  * TMT Source Code: 9/21/16.
  */
 class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef], singleAxisPublisher: ActorRef, maac: MultiAxisAssemblyConfig,
-                               aapi: AssemblyApi)
+                               maapi: MultiAxisMotionAssemblyApi)
     extends Actor with ActorLogging with LocationSubscriberClient with SingleAxisStateClient {
 
   import context.dispatcher
@@ -88,6 +89,15 @@ class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef]
       // sm -  user specific Handler should take the configKey as input and return the actor that will handle the command
       // each "Command" actor should actually subclass from a single Command actor
 
+      // get the correct singleAxisConfig out of the passed MultiAxisAssemblyConfig given the passed setupConfig
+
+      log.debug(s"axisNameKey = ${maapi.axisNameParamKey}")
+      log.debug(s"param = ${sc(maapi.axisNameParamKey)}")
+      log.debug(s"values = ${sc(maapi.axisNameParamKey).values}")
+
+      val axisName = sc(maapi.axisNameParamKey).values.head
+      val sac = maac.axesmap(axisName)
+
       sc.configKey match {
         case ac.compHelper.initCK =>
           log.info("Init not fully implemented -- only sets state ready!")
@@ -97,7 +107,7 @@ class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef]
         case ac.compHelper.positionCK =>
           if (isHCDAvailable) {
             log.info("ExecuteOne: positionCK");
-            val positionActorRef = context.actorOf(PositionCommand.props(ac, sc, galilHCD, currentState, Some(singleAxisStateActor), maac, aapi))
+            val positionActorRef = context.actorOf(PositionCommand.props(ac, sc, galilHCD, currentState, Some(singleAxisStateActor), sac, maapi))
             //log.info("positionActorRef = " + positionActorRef)
             context.become(actorExecutingReceive(positionActorRef, commandOriginator))
             self ! CommandStart
@@ -106,7 +116,7 @@ class SingleAxisCommandHandler(ac: AssemblyContext, galilHCDIn: Option[ActorRef]
         case ac.compHelper.datumCK =>
           if (isHCDAvailable) {
             log.info("ExecuteOne: datumCK");
-            val datumActorRef = context.actorOf(DatumCommand.props(sc, galilHCD, currentState, Some(singleAxisStateActor)))
+            val datumActorRef = context.actorOf(DatumCommand.props(sc, galilHCD, currentState, Some(singleAxisStateActor), sac, maapi))
 
             context.become(actorExecutingReceive(datumActorRef, commandOriginator))
             self ! CommandStart
@@ -168,8 +178,8 @@ object SingleAxisCommandHandler {
   // message sent too self when command completes
   private case object CommandDone
 
-  def props(assemblyContext: AssemblyContext, galilHCDIn: Option[ActorRef], telemetryGenerator: ActorRef, maac: MultiAxisAssemblyConfig, aapi: AssemblyApi) =
-    Props(new SingleAxisCommandHandler(assemblyContext, galilHCDIn, telemetryGenerator, maac, aapi))
+  def props(assemblyContext: AssemblyContext, galilHCDIn: Option[ActorRef], telemetryGenerator: ActorRef, maac: MultiAxisAssemblyConfig, maapi: MultiAxisMotionAssemblyApi) =
+    Props(new SingleAxisCommandHandler(assemblyContext, galilHCDIn, telemetryGenerator, maac, maapi))
 
   def executeMatch(context: ActorContext, stateMatcher: StateMatcher, currentStateSource: ActorRef, replyTo: Option[ActorRef] = None,
                    timeout: Timeout = Timeout(5.seconds))(codeBlock: PartialFunction[CommandStatus, Unit]): Unit = {

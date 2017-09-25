@@ -52,8 +52,7 @@ class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPr
   val posSelectChoices = Choices.from("", "")
   val posSelectParamKey = ChoiceKey("positionSelection", posSelectChoices)
 
-  val axisChoices = Choices.from("x", "y", "z", "phi")
-  val axisParamKey = ChoiceKey("axis")
+  val axisNameParamKey = StringKey("axisName")
 
   /************************************************************************************************/
   // setupConfigs - a function to create each setupConfig that can be used with a motion assembly
@@ -63,7 +62,7 @@ class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPr
   def positionSC(positionValue: Double, axisName: String, positionType: String, coordName: String): SetupConfig = {
 
     SetupConfig(positionCK).
-      add(axisParamKey -> axisName).
+      add(axisNameParamKey -> axisName).
       add(positionParamKey -> positionValue withUnits positionParamUnits).
       add(typeParamKey -> positionType).
       add(coordinateParamKey -> coordName)
@@ -73,21 +72,23 @@ class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPr
   def positionSC(axisName: String, positionSelection: String): SetupConfig = {
 
     SetupConfig(positionCK).
-      add(axisParamKey -> axisName).
+      add(axisNameParamKey -> axisName).
       add(posSelectParamKey -> positionSelection)
   }
 
   // init setup config
-  def initSC(): SetupConfig = {
-    SetupConfig(initCK)
+  def initSC(axisName: String): SetupConfig = {
+    SetupConfig(initCK).add(axisNameParamKey -> axisName)
   }
 
   // datum setup config
-  def datumSC(): SetupConfig = {
-    SetupConfig(datumCK)
+  def datumSC(axisName: String): SetupConfig = {
+    SetupConfig(datumCK).add(axisNameParamKey -> axisName)
   }
 
-  // signature validation functions common to all motion assemblies
+  //******************************************************************//
+  // signature validation functions common to all motion assemblies   //
+  //******************************************************************//
 
   /**
    * Validation for init SetupConfig -- currently nothing to validate
@@ -138,14 +139,13 @@ class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPr
    * @param tla the BlockingAssemblyClient returned by getSingleAxis
    * @return CommandResult and the conclusion of execution
    */
-  def init(tla: BlockingAssemblyClient, obsId: String): CommandResult = {
-    tla.submit(Configurations.createSetupConfigArg(obsId, SetupConfig(initCK), SetupConfig(datumCK)))
+  def init(tla: BlockingAssemblyClient, obsId: String, axisName: String): CommandResult = {
+    tla.submit(Configurations.createSetupConfigArg(obsId, initSC(axisName), datumSC(axisName)))
   }
 
   // A list of all commands, just do position for now
   val allCommandKeys: List[ConfigKey] = List(positionCK)
 
-  
   val stagePositionKey = DoubleKey("stagePosition")
   val stagePositionUnits = millimeters
   def spos(pos: Double): DoubleItem = stagePositionKey -> pos withUnits stagePositionUnits
@@ -155,6 +155,5 @@ class MotionAssemblyApi(componentPrefix: String) extends AssemblyApi(componentPr
   val singleAxisStateStatusEventPrefix = s"$componentPrefix.state"
   val axisStateEventPrefix = s"$componentPrefix.axis1State"
   val axisStatsEventPrefix = s"$componentPrefix.axis1Stats"
-
 
 }

@@ -2,6 +2,7 @@ package org.tmt.aps.ics.assembly
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import org.tmt.aps.ics.assembly.SingleAxisStateActor.SingleAxisState
+import org.tmt.aps.ics.assembly.motion.MotionAssemblyApi
 import org.tmt.aps.ics.hcd.GalilHCD._
 import csw.services.ccs.CommandStatus.{Completed, Error, NoLongerValid}
 import csw.services.ccs.HcdController
@@ -17,7 +18,9 @@ import scala.concurrent.duration._
 /**
  * TMT Source Code: 10/21/16.
  */
-class DatumCommand(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef]) extends Actor with ActorLogging {
+class DatumCommand(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef], sac: SingleAxisConfig,
+                   maapi: MotionAssemblyApi) extends Actor with ActorLogging {
+
   import SingleAxisCommandHandler._
   import SingleAxisStateActor._
 
@@ -38,8 +41,9 @@ class DatumCommand(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisSt
         sendState(SetState(cmdItem(cmdBusy), moveItem(moveIndexing)))
 
         // sm - this is the part that a subclass or handler would provide
+        val hcdSetupConfig = SetupConfig(axisDatumCK) add (axisNameKey -> sc(maapi.axisNameParamKey).values.head)
 
-        galilHCD ! HcdController.Submit(SetupConfig(axisDatumCK))
+        galilHCD ! HcdController.Submit(hcdSetupConfig)
         SingleAxisCommandHandler.executeMatch(context, idleMatcher, galilHCD, Some(mySender)) {
           case Completed =>
             sendState(SetState(cmdReady, moveIndexed))
@@ -62,6 +66,7 @@ class DatumCommand(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisSt
 }
 
 object DatumCommand {
-  def props(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef]): Props =
-    Props(classOf[DatumCommand], sc, galilHCD, startState, stateActor)
+  def props(sc: SetupConfig, galilHCD: ActorRef, startState: SingleAxisState, stateActor: Option[ActorRef], sac: SingleAxisConfig,
+            maapi: MotionAssemblyApi): Props =
+    Props(classOf[DatumCommand], sc, galilHCD, startState, stateActor, sac, maapi)
 }

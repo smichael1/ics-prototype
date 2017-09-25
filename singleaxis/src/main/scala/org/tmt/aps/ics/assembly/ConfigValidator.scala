@@ -3,6 +3,7 @@ package org.tmt.aps.ics.assembly
 import csw.services.ccs.Validation._
 import csw.util.config.Configurations.{SetupConfig, SetupConfigArg}
 import com.typesafe.scalalogging.LazyLogging
+import org.tmt.aps.ics.assembly.motion.MotionAssemblyApi
 
 import scala.util.Try
 
@@ -29,9 +30,13 @@ object ConfigValidator extends LazyLogging {
    */
   def validateOneSetupConfig(sc: SetupConfig)(implicit aapi: AssemblyApi, maac: MultiAxisAssemblyConfig): Validation = {
 
+    logger.debug(s"config key = ${sc.configKey}")
+
     val signatureValid = aapi.validateSignature(sc)
+    logger.debug(s"validated signature $signatureValid")
 
     val paramValueValid = aapi.validateParamValues(sc)
+    logger.debug(s"validated param values $paramValueValid")
 
     val validationList: ValidationList = List(signatureValid, paramValueValid)
 
@@ -46,7 +51,9 @@ object ConfigValidator extends LazyLogging {
   }
 
   // Validates a SetupConfigArg for SingleAxis Assembly
-  def validateSetupConfigArg(sca: SetupConfigArg)(implicit aapi: AssemblyApi, maac: MultiAxisAssemblyConfig): ValidationList =
+  def validateSetupConfigArg(sca: SetupConfigArg)(implicit aapi: AssemblyApi, maac: MultiAxisAssemblyConfig): ValidationList = {
+    logger.debug("validateSetupConfigArg")
     sca.configs.map(config => validateOneSetupConfig(config)).toList
+  }
 
 }

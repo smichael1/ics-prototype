@@ -7,17 +7,18 @@ import org.tmt.aps.ics.assembly.SingleAxisConfig
 import org.tmt.aps.ics.assembly.AssemblyApi
 import org.tmt.aps.ics.assembly.Converter
 
-
 case class MultiAxisMotionAssemblyApi(componentPrefix: String) extends MotionAssemblyApi(componentPrefix) {
 
   override def validateSignature(candidateSC: SetupConfig): Validation = {
+
+    println(s"initCK = ${initCK}")
 
     candidateSC.configKey match {
       case `initCK`     => initValidation(candidateSC)
       case `datumCK`    => datumValidation(candidateSC)
       case `stopCK`     => stopValidation(candidateSC)
       case `positionCK` => positionValidation(candidateSC)
-      case x          => Invalid(OtherIssue(s"SetupConfig with prefix $x is not supported"))
+      case x            => Invalid(OtherIssue(s"SetupConfig with prefix $x is not supported"))
     }
   }
 
@@ -31,7 +32,10 @@ case class MultiAxisMotionAssemblyApi(componentPrefix: String) extends MotionAss
     val vl1 = validateScParam(candidateSC, positionParamKey, positionParamUnits)
     val vl2 = validateScParam(candidateSC, typeParamKey)
     val vl3 = validateScParam(candidateSC, coordinateParamKey)
-    val vl4 = validateScParam(candidateSC, axisParamKey)
+
+    //val vl4 = validateScParam(candidateSC, axisNameParamKey)
+    // TODO: need to validate axisName against the axis names in the multiAxisAssemblyConfig
+    val vl4 = Valid
 
     val validationList: ValidationList = List(vl1, vl2, vl3, vl4)
 

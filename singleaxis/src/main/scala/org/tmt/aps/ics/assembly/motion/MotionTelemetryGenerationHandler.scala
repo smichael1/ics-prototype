@@ -4,7 +4,7 @@ import org.tmt.aps.ics.assembly.SingleAxisPublisher.{AxisStateUpdate}
 import csw.util.config.StateVariable.CurrentState
 import org.tmt.aps.ics.assembly.Converter._
 import csw.util.config.UnitsOfMeasure.{millimeters}
-import csw.util.config.{DoubleKey}
+import csw.util.config.{DoubleKey, StringKey}
 import org.tmt.aps.ics.assembly.MultiAxisAssemblyConfig
 import org.tmt.aps.ics.assembly.TelemetryGeneratorHandler
 
@@ -21,9 +21,14 @@ class MotionTelemetryGenerationHandler(assemblyConfig: MultiAxisAssemblyConfig) 
   def generateAxisStateUpdate(cs: CurrentState): AxisStateUpdate = {
 
     // TODO: axisName needs to be part of CurrentState
-    val axisName: Option[String] = cs.getByName("axisName")
 
-    val axisConfig = assemblyConfig.axesmap.get(axisName.get)
+    val axisNameKey = StringKey("axisName");
+
+    val axisName = cs(axisNameKey).values.head
+
+    assemblyConfig.axesmap foreach { case (key, value) => println(key + "-->" + value) }
+
+    val axisConfig = assemblyConfig.axesmap.get(axisName)
 
     // convert position from postionKey from encoder to meters
     val posItem = cs(positionKey);

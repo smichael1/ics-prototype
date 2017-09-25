@@ -19,6 +19,7 @@ import csw.util.config._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.language.implicitConversions
+import scala.language.postfixOps
 
 /**
  * GalilHCD -- This is the Top Level Actor for the GalilHCD
@@ -32,7 +33,7 @@ import scala.language.implicitConversions
 class GalilHCD(override val info: HcdInfo, supervisor: ActorRef) extends Hcd with HcdController {
 
   import context.dispatcher
-  import SingleAxisSimulator._
+  import GalilAxisActor._
   import GalilHCD._
 
   implicit val timeout = Timeout(2.seconds)
@@ -44,31 +45,38 @@ class GalilHCD(override val info: HcdInfo, supervisor: ActorRef) extends Hcd wit
 
   // Initialize values -- This causes an update to the listener
   // The current axis position from the hardware axis, initialize to default value
-  var current: AxisUpdate = _
-  var stats: AxisStatistics = _
 
-  // Create an axis for simulating axis motion
-  var stageAxis: ActorRef = _
+  // map of latest AxisUpdates
+  var current: scala.collection.mutable.Map[String, AxisUpdate] = scala.collection.mutable.Map()
 
   // Get the axis config file from the config service, then use it to start the stageAxis actor
   // and get the current values. Once that is done, we can tell the supervisor actor that we are ready
   // and then wait for the Running message from the supervisor before going to the running state.
   // Initialize axis from ConfigService
-  var axisConfig: AxisConfig = _
+  //var axisConfig: AxisConfig = _
+  var hcdConfig: MultiAxisHcdConfig = _
 
   try {
     // The following line could fail, if the config service is not running or the file is not found
-    axisConfig = Await.result(getAxisConfig, timeout.duration)
+    hcdConfig = Await.result(getHcdConfig, timeout.duration)
 
-    // Create an axis for simulating axis motion
-    stageAxis = setupAxis(axisConfig)
+    // The GalilHCD config contains configuration for multiple axes.  We call setupAxis for each axis and maintain 
+    // a map of actor refs, one for each axis.
 
-    // Initialize values -- This causes an update to the listener
-    // The current axis position from the hardware axis, initialize to default value
+    hcdConfig.axesmap foreach {
+      case (name, axisConfig) => {
 
-    current = Await.result((stageAxis ? InitialState).mapTo[AxisUpdate], timeout.duration)
+        log.debug(s"AXIS NAME is: $name")
+        val stageAxis = setupAxis(name, axisConfig) // name field will be used to find the child actor later
 
-    stats = Await.result((stageAxis ? GetStatistics).mapTo[AxisStatistics], timeout.duration)
+        // Initialize values -- This causes an update to the listener
+        // The current axis position from the hardware axis, initialize to default value
+
+        val axisUpdate = Await.result((stageAxis ? InitialState).mapTo[AxisUpdate], timeout.duration)
+
+        current += (name -> axisUpdate)
+      }
+    }
 
     // Required setup for Lifecycle in order to get messages
     supervisor ! Initialized
@@ -114,35 +122,38 @@ class GalilHCD(override val info: HcdInfo, supervisor: ActorRef) extends Hcd wit
     case LifecycleFailureInfo(state: LifecycleState, reason: String) =>
       log.info(s"Received failed state: $state for reason: $reason")
 
-    case GetAxisStats =>
-      stageAxis ! GetStatistics
+    case GetAxisUpdate(name: String) => {
+      val galilAxis = context.child(name).get
+      galilAxis ! PublishAxisUpdate
+    }
 
-    case GetAxisUpdate =>
-      stageAxis ! PublishAxisUpdate
-
-    case GetAxisUpdateNow =>
-      sender() ! current
+    case GetAxisUpdateNow(name: String) =>
+      sender() ! current.get(name).get
 
     case AxisStarted =>
     //println("Axis Started")
 
-    case GetAxisConfig =>
-      val axisConfigState = defaultConfigState.madd(
+    case GetAxisConfig(name: String) =>
+
+      val axisConfig = hcdConfig.axesmap.get(name).get
+
+      val axisConfigState = defaultConfigState(name).madd(
+
+        galilAxisKey -> axisConfig.galilAxis,
         lowLimitKey -> axisConfig.lowLimit,
-        lowUserKey -> axisConfig.lowUser,
-        highUserKey -> axisConfig.highUser,
         highLimitKey -> axisConfig.highLimit,
         homeValueKey -> axisConfig.home,
-        startValueKey -> axisConfig.startPosition,
         stepDelayMSKey -> axisConfig.stepDelayMS
       )
       notifySubscribers(axisConfigState)
 
-    case au @ AxisUpdate(_, axisState, currentPosition, inLowLimit, inHighLimit, inHomed) =>
+    case au @ AxisUpdate(axisName, axisState, currentPosition, inLowLimit, inHighLimit, inHomed) =>
+
       // Update actor state
-      this.current = au
+      this.current += (axisName -> au)
+
       //      context.become(runningReceive)
-      val stageAxisState = defaultAxisState.madd(
+      val stageAxisState = defaultAxisState(axisName).madd(
         positionKey -> currentPosition withUnits encoder,
         stateKey -> axisState.toString,
         inLowLimitKey -> inLowLimit,
@@ -150,22 +161,6 @@ class GalilHCD(override val info: HcdInfo, supervisor: ActorRef) extends Hcd wit
         inHomeKey -> inHomed
       )
       notifySubscribers(stageAxisState)
-
-    case as: AxisStatistics =>
-      log.debug(s"AxisStatus: $as")
-      // Update actor statistics
-      this.stats = as
-      //      context.become(runningReceive)
-      val stageStats = defaultStatsState.madd(
-        datumCountKey -> as.initCount,
-        moveCountKey -> as.moveCount,
-        limitCountKey -> as.limitCount,
-        homeCountKey -> as.homeCount,
-        successCountKey -> as.successCount,
-        failureCountKey -> as.failureCount,
-        cancelCountKey -> as.cancelCount
-      )
-      notifySubscribers(stageStats)
 
     case ShutdownComplete => log.info(s"${info.componentName} shutdown complete")
 
@@ -176,31 +171,34 @@ class GalilHCD(override val info: HcdInfo, supervisor: ActorRef) extends Hcd wit
     import GalilHCD._
     log.debug(s"Stage Axis process received sc: $sc")
 
+    val axisName = sc(axisNameKey).values.head
+    val galilAxis = context.child(axisName).get
+
     sc.configKey match {
       case `axisMoveCK` =>
-        stageAxis ! Move(sc(positionKey).head, diagFlag = true)
+        galilAxis ! Move(sc(positionKey).head, diagFlag = true)
       case `axisDatumCK` =>
         log.info("Received Datum")
-        stageAxis ! Datum
+        galilAxis ! Datum
       case `axisHomeCK` =>
-        stageAxis ! Home
+        galilAxis ! Home
       case `axisCancelCK` =>
-        stageAxis ! CancelMove
+        galilAxis ! CancelMove
       case x => log.warning(s"Unknown config key $x")
 
     }
   }
 
-  private def setupAxis(ac: AxisConfig): ActorRef = context.actorOf(SingleAxisSimulator.props(ac, Some(self)), "Test1")
+  private def setupAxis(name: String, ac: AxisConfig): ActorRef = context.actorOf(GalilAxisActor.props(ac, Some(self)), name)
 
   // Utility functions
-  private def getAxisConfig: Future[AxisConfig] = {
+  private def getHcdConfig: Future[MultiAxisHcdConfig] = {
     // This is required by the ConfigServiceClient
     implicit val system = context.system
 
     val f = ConfigServiceClient.getConfigFromConfigService(galilConfigFile, resource = Some(resource))
 
-    f.map(_.map(AxisConfig(_)).get)
+    f.map(_.map(MultiAxisHcdConfig(_)).get)
   }
 }
 
@@ -208,8 +206,8 @@ object GalilHCD {
   def props(hcdInfo: HcdInfo, supervisor: ActorRef) = Props(classOf[GalilHCD], hcdInfo, supervisor)
 
   // Get the galil config file from the config service, or use the given resource file if that doesn't work
-  val galilConfigFile = new File("poc/galilHCD")
-  val resource = new File("galilHCD.conf")
+  val galilConfigFile = new File("poc/newGalilHCD")
+  val resource = new File("newGalilHCD.conf")
 
   // HCD Info
   val componentName = "icsGalilHCD"
@@ -217,23 +215,24 @@ object GalilHCD {
   val componentClassName = "org.tmt.aps.ics.hcd.GalilHCD"
   val galilPrefix = "org.tmt.aps.ics.hcd.galilHcd"
 
-  val galilAxisName = "stageAxis"
+  //val galilAxisName = "stageAxis"
 
   val axisStatePrefix = s"$galilPrefix.axis1State"
   val axisStateCK: ConfigKey = axisStatePrefix
   val axisNameKey = StringKey("axisName")
-  val AXIS_IDLE = Choice(SingleAxisSimulator.AXIS_IDLE.toString)
-  val AXIS_MOVING = Choice(SingleAxisSimulator.AXIS_MOVING.toString)
-  val AXIS_ERROR = Choice(SingleAxisSimulator.AXIS_ERROR.toString)
+  val AXIS_IDLE = Choice(GalilAxisActor.AXIS_IDLE.toString)
+  val AXIS_MOVING = Choice(GalilAxisActor.AXIS_MOVING.toString)
+  val AXIS_ERROR = Choice(GalilAxisActor.AXIS_ERROR.toString)
   val stateKey = ChoiceKey("axisState", AXIS_IDLE, AXIS_MOVING, AXIS_ERROR)
   val positionKey = IntKey("position")
   val positionUnits: encoder.type = encoder
   val inLowLimitKey = BooleanKey("lowLimit")
   val inHighLimitKey = BooleanKey("highLimit")
   val inHomeKey = BooleanKey("homed")
+  val galilAxisKey = StringKey("galilAxis")
 
-  private val defaultAxisState = CurrentState(axisStateCK).madd(
-    axisNameKey -> galilAxisName,
+  private def defaultAxisState(axisName: String) = CurrentState(axisStateCK).madd(
+    axisNameKey -> axisName,
     stateKey -> AXIS_IDLE,
     positionKey -> 0 withUnits encoder,
     inLowLimitKey -> false,
@@ -250,30 +249,21 @@ object GalilHCD {
   val successCountKey = IntKey("successCount")
   val failureCountKey = IntKey("failureCount")
   val cancelCountKey = IntKey("cancelCount")
-  private val defaultStatsState = CurrentState(axisStatsCK).madd(
-    axisNameKey -> galilAxisName,
-    datumCountKey -> 0,
-    moveCountKey -> 0,
-    homeCountKey -> 0,
-    limitCountKey -> 0,
-    successCountKey -> 0,
-    failureCountKey -> 0,
-    cancelCountKey -> 0
-  )
 
   val axisConfigPrefix = s"$galilPrefix.axisConfig"
   val axisConfigCK: ConfigKey = axisConfigPrefix
   // axisNameKey
   val lowLimitKey = IntKey("lowLimit")
-  val lowUserKey = IntKey("lowUser")
-  val highUserKey = IntKey("highUser")
   val highLimitKey = IntKey("highLimit")
   val homeValueKey = IntKey("homeValue")
   val startValueKey = IntKey("startValue")
   val stepDelayMSKey = IntKey("stepDelayMS")
+
+  // SM - generalize this so that axisName is a passed variable
+
   // No full default current state because it is determined at runtime
-  private val defaultConfigState = CurrentState(axisConfigCK).madd(
-    axisNameKey -> galilAxisName
+  private def defaultConfigState(axisName: String) = CurrentState(axisConfigCK).madd(
+    axisNameKey -> axisName
   )
 
   val axisMovePrefix = s"$galilPrefix.move"
@@ -301,13 +291,13 @@ object GalilHCD {
   /**
    * Returns an AxisUpdate through subscribers
    */
-  case object GetAxisUpdate extends GalilEngineering
+  case class GetAxisUpdate(name: String) extends GalilEngineering
 
   /**
    * Directly returns an AxisUpdate to sender
    */
-  case object GetAxisUpdateNow extends GalilEngineering
+  case class GetAxisUpdateNow(name: String) extends GalilEngineering
 
-  case object GetAxisConfig extends GalilEngineering
+  case class GetAxisConfig(name: String) extends GalilEngineering
 
 }

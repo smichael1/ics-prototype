@@ -1,12 +1,6 @@
 package org.tmt.aps.ics.assembly
 
 import com.typesafe.config.Config
-
-import csw.services.loc.ComponentId
-import csw.services.pkg.Component.AssemblyInfo
-import csw.util.config.Configurations.{ConfigKey, SetupConfig}
-import csw.util.config.UnitsOfMeasure.{degrees, kilometers, micrometers, millimeters}
-import csw.util.config.{BooleanKey, DoubleItem, DoubleKey, StringKey}
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
 
